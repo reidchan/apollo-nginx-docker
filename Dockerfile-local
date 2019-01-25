@@ -1,0 +1,27 @@
+FROM java:8-jre
+
+ENV CONFIG_SERVICE_URL=你的local.configService域名
+
+RUN curl -O -s http://obf68by4u.bkt.clouddn.com/nginx_signing.key && apt-key add nginx_signing.key && \ 
+		echo 'deb http://nginx.org/packages/mainline/debian/ jessie nginx' >> /etc/apt/sources.list &&\ 
+		echo 'deb-src http://nginx.org/packages/mainline/debian/ jessie nginx' >> /etc/apt/sources.list && rm nginx_signing.key
+RUN apt-get update \
+    && apt-get install nginx=1.13.0-1~jessie
+
+# config-service
+COPY ./src/config-service /usr/share/nginx/config-service
+COPY ./config/local/service/config /usr/share/nginx/config-service/config
+
+# admin-service
+COPY ./src/admin-service /usr/share/nginx/admin-service
+COPY ./config/local/admin/config /usr/share/nginx/admin-service/config
+
+COPY ./nginx/local/nginx.conf /etc/nginx/conf.d
+
+RUN sed -i s/CONFIG_SERVICE_URL/$CONFIG_SERVICE_URL/g /etc/nginx/conf.d/backend.conf
+
+EXPOSE 80
+
+ENTRYPOINT nginx && /usr/share/nginx/config-service/scripts/startup.sh \
+    && /usr/share/nginx/admin-service/scripts/startup.sh \
+    && /usr/share/nginx/portal/scripts/startup.sh
